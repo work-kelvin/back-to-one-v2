@@ -1,10 +1,54 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+
+interface Production {
+  id: string
+  name: string
+  created_at: string
+}
 
 export default function Dashboard() {
-  const [productions, setProductions] = useState<Array<{id: number, name: string, date: string}>>([])
+  const [productions, setProductions] = useState<Production[]>([])
   const [newProduction, setNewProduction] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  // Load productions on page load
+  useEffect(() => {
+    loadProductions()
+  }, [])
+
+  const loadProductions = async () => {
+    const { data, error } = await supabase
+      .from('productions')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error loading productions:', error)
+    } else {
+      setProductions(data || [])
+    }
+  }
+
+  const createProduction = async () => {
+    if (!newProduction.trim()) return
+
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('productions')
+      .insert([{ name: newProduction.trim() }])
+      .select()
+
+    if (error) {
+      console.error('Error creating production:', error)
+    } else {
+      setProductions([...data, ...productions])
+      setNewProduction('')
+    }
+    setLoading(false)
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -17,22 +61,15 @@ export default function Dashboard() {
           placeholder="New production name..."
           value={newProduction}
           onChange={(e) => setNewProduction(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && createProduction()}
           className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button 
-          onClick={() => {
-            if (newProduction.trim()) {
-              setProductions([...productions, { 
-                id: Date.now(), 
-                name: newProduction,
-                date: new Date().toLocaleDateString()
-              }])
-              setNewProduction('')
-            }
-          }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          onClick={createProduction}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
         >
-          Create Production
+          {loading ? 'Creating...' : 'Create Production'}
         </button>
       </div>
 
@@ -40,7 +77,9 @@ export default function Dashboard() {
         {productions.map((prod) => (
           <div key={prod.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
             <h3 className="font-semibold text-lg">{prod.name}</h3>
-            <p className="text-sm text-gray-500">Created: {prod.date}</p>
+            <p className="text-sm text-gray-500">
+              Created: {new Date(prod.created_at).toLocaleDateString()}
+            </p>
           </div>
         ))}
       </div>
@@ -53,4 +92,3 @@ export default function Dashboard() {
     </div>
   )
 }
-console.log('Fresh deployment')
