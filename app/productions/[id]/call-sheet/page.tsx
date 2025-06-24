@@ -164,13 +164,45 @@ export default function CallSheetGenerator() {
     setGenerating(true)
     
     try {
-      const canvas = await html2canvas(callSheetRef.current, {
-        scale: 2,
+      // Create a clean version without problematic CSS
+      const element = callSheetRef.current.cloneNode(true) as HTMLElement
+      
+      // Remove any problematic styles
+      const allElements = element.querySelectorAll('*')
+      allElements.forEach(el => {
+        const htmlEl = el as HTMLElement
+        // Remove any CSS custom properties or complex styles
+        htmlEl.style.removeProperty('--tw-ring-shadow')
+        htmlEl.style.removeProperty('--tw-shadow')
+        htmlEl.style.removeProperty('--tw-shadow-colored')
+        htmlEl.style.backgroundColor = htmlEl.style.backgroundColor || 'white'
+      })
+
+      const canvas = await html2canvas(element, {
+        scale: 1.5,
         useCORS: true,
-        allowTaint: true
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        removeContainer: true,
+        logging: false,
+        onclone: (clonedDoc: Document) => {
+          // Remove any problematic CSS in the cloned document
+          const style = clonedDoc.createElement('style')
+          style.innerHTML = `
+            * {
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              box-shadow: none !important;
+            }
+            .bg-gray-100 { background-color: #f3f4f6 !important; }
+            .bg-white { background-color: #ffffff !important; }
+            .border-black { border-color: #000000 !important; }
+          `
+          clonedDoc.head.appendChild(style)
+        }
       } as any)
 
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/png', 1.0)
       const pdf = new jsPDF('p', 'mm', 'a4')
       
       const imgWidth = 210
@@ -190,11 +222,21 @@ export default function CallSheetGenerator() {
         heightLeft -= pageHeight
       }
 
-      pdf.save(`${production.name} - Call Sheet.pdf`)
+      const fileName = `${production.name.replace(/[^a-z0-9]/gi, '_')}_Call_Sheet.pdf`
+      pdf.save(fileName)
+      
       console.log('✅ PDF generated successfully')
+      alert('Call sheet PDF downloaded!')
+      
     } catch (error) {
       console.error('❌ Error generating PDF:', error)
-      alert('Failed to generate PDF')
+      
+      // Fallback: try simpler approach
+      try {
+        window.print()
+      } catch (printError) {
+        alert('PDF generation failed. Please try using your browser\'s print function (Ctrl+P)')
+      }
     }
 
     setGenerating(false)
@@ -276,14 +318,23 @@ export default function CallSheetGenerator() {
             <h1 className="text-3xl font-bold">{production.name} - Call Sheet</h1>
             <p className="text-gray-600">Generate professional call sheets</p>
           </div>
-          <Button 
-            onClick={generatePDF}
-            disabled={generating}
-            size="lg"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {generating ? 'Generating...' : '📄 Generate PDF'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={generatePDF}
+              disabled={generating}
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {generating ? 'Generating...' : '📄 Download PDF'}
+            </Button>
+            <Button 
+              onClick={() => window.print()}
+              variant="outline"
+              size="lg"
+            >
+              🖨️ Print
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
