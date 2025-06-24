@@ -30,6 +30,7 @@ export default function LooksManagement() {
   const [looks, setLooks] = useState<Look[]>([])
   const [newLookName, setNewLookName] = useState('')
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState<string | null>(null)
 
   useEffect(() => {
     loadProduction()
@@ -110,6 +111,28 @@ export default function LooksManagement() {
       ))
       console.log('✅ Image URL updated successfully')
     }
+  }
+
+  const uploadImage = async (lookId: string, file: File) => {
+    setUploading(lookId)
+    const { data, error } = await supabase
+      .from('looks')
+      .update({ image_url: URL.createObjectURL(file) })
+      .eq('id', lookId)
+
+    if (error) {
+      console.error('❌ Failed to upload image:', error)
+      alert('Failed to upload image')
+    } else {
+      // Update local state
+      setLooks(looks.map(look => 
+        look.id === lookId 
+          ? { ...look, image_url: URL.createObjectURL(file) }
+          : look
+      ))
+      console.log('✅ Image uploaded successfully')
+    }
+    setUploading(null)
   }
 
   const moveUp = async (index: number) => {
@@ -273,7 +296,7 @@ export default function LooksManagement() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* Image Display/URL Input */}
+                  {/* Image Display/Upload */}
                   <div className="mb-4">
                     {look.image_url ? (
                       <div className="relative group">
@@ -284,7 +307,7 @@ export default function LooksManagement() {
                           onLoad={() => console.log('✅ Image loaded:', look.image_url)}
                           onError={(e) => {
                             console.error('❌ Image failed to load:', look.image_url)
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4='
+                            e.currentTarget.style.display = 'none'
                           }}
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-md flex items-center justify-center">
@@ -293,10 +316,14 @@ export default function LooksManagement() {
                             size="sm"
                             className="opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => {
-                              const url = prompt('Enter new image URL:', look.image_url || '')
-                              if (url && url.trim()) {
-                                updateImageUrl(look.id, url.trim())
+                              const input = document.createElement('input')
+                              input.type = 'file'
+                              input.accept = 'image/*'
+                              input.onchange = (e) => {
+                                const file = (e.target as HTMLInputElement).files?.[0]
+                                if (file) uploadImage(look.id, file)
                               }
+                              input.click()
                             }}
                           >
                             Change Image
@@ -304,37 +331,26 @@ export default function LooksManagement() {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        <div
-                          className="w-full h-48 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                          onClick={() => {
-                            const url = prompt('Enter image URL:\n\nTip: Right-click any image online → "Copy image address"')
-                            if (url && url.trim()) {
-                              updateImageUrl(look.id, url.trim())
-                            }
-                          }}
-                        >
-                          <div className="text-center">
-                            <div className="text-4xl mb-2">🖼️</div>
-                            <p className="text-sm text-gray-600 font-medium">Click to add image URL</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              Paste any image link from the web
-                            </p>
-                          </div>
+                      <div
+                        className="w-full h-48 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                        onClick={() => {
+                          const input = document.createElement('input')
+                          input.type = 'file'
+                          input.accept = 'image/*'
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0]
+                            if (file) uploadImage(look.id, file)
+                          }
+                          input.click()
+                        }}
+                      >
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">📸</div>
+                          <p className="text-sm text-gray-600">
+                            {uploading === look.id ? 'Uploading...' : 'Click to upload image'}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 5MB</p>
                         </div>
-                        <Input
-                          placeholder="Or paste image URL here and press Enter..."
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              const url = (e.target as HTMLInputElement).value.trim()
-                              if (url) {
-                                updateImageUrl(look.id, url)
-                                ;(e.target as HTMLInputElement).value = ''
-                              }
-                            }
-                          }}
-                          className="text-sm"
-                        />
                       </div>
                     )}
                   </div>
