@@ -166,8 +166,11 @@ export default function ProductionDetail() {
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">Generate professional call sheets</p>
-            <Button variant="outline" className="w-full">
-              Generate Call Sheet (Coming Soon)
+            <Button 
+              onClick={() => router.push(`/productions/${production.id}/call-sheet`)}
+              className="w-full"
+            >
+              Generate Call Sheet
             </Button>
           </CardContent>
         </Card>
