@@ -95,20 +95,15 @@ export default function LooksManagement() {
     setUploading(lookId)
     
     try {
-      // Check file size
-      const maxSize = 5 * 1024 * 1024 // 5MB
-      if (file.size > maxSize) {
-        alert('Image too large. Please choose an image under 5MB.')
-        setUploading(null)
-        return
-      }
-
       console.log('🚀 Starting upload for look:', lookId)
       console.log('📁 File details:', { name: file.name, size: file.size, type: file.type })
+      console.log('🔐 Current user:', await supabase.auth.getUser())
 
       const fileExt = file.name.split('.').pop()?.toLowerCase()
       const fileName = `look-${lookId}-${Date.now()}.${fileExt}`
       const filePath = `looks/${fileName}`
+
+      console.log('📂 Upload path:', filePath)
 
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -119,8 +114,8 @@ export default function LooksManagement() {
         })
 
       if (uploadError) {
-        console.error('❌ Upload error:', uploadError)
-        alert('Upload failed: ' + uploadError.message)
+        console.error('❌ Upload error details:', uploadError)
+        alert('Upload failed: ' + uploadError.message + '\nDetails: ' + JSON.stringify(uploadError))
         setUploading(null)
         return
       }
@@ -134,43 +129,29 @@ export default function LooksManagement() {
 
       console.log('🔗 Generated public URL:', publicUrl)
 
-      // Test if URL is accessible
-      const testImage = new window.Image()
-      testImage.onload = async () => {
-        console.log('✅ Image URL is accessible')
+      // Update look with image URL
+      const { error: updateError } = await supabase
+        .from('looks')
+        .update({ image_url: publicUrl })
+        .eq('id', lookId)
 
-        // Update look with image URL
-        const { error: updateError } = await supabase
-          .from('looks')
-          .update({ image_url: publicUrl })
-          .eq('id', lookId)
-
-        if (updateError) {
-          console.error('❌ Database update error:', updateError)
-          alert('Failed to save image URL')
-        } else {
-          // Update local state
-          setLooks(looks.map(look => 
-            look.id === lookId 
-              ? { ...look, image_url: publicUrl }
-              : look
-          ))
-          console.log('✅ Look updated with image URL')
-        }
-        setUploading(null)
+      if (updateError) {
+        console.error('❌ Database update error:', updateError)
+        alert('Failed to save image URL')
+      } else {
+        // Update local state
+        setLooks(looks.map(look => 
+          look.id === lookId 
+            ? { ...look, image_url: publicUrl }
+            : look
+        ))
+        console.log('✅ Look updated with image URL')
       }
-
-      testImage.onerror = () => {
-        console.error('❌ Generated URL is not accessible:', publicUrl)
-        alert('Image uploaded but URL not accessible. Check storage settings.')
-        setUploading(null)
-      }
-
-      testImage.src = publicUrl
+      setUploading(null)
 
     } catch (error) {
       console.error('❌ Unexpected error:', error)
-      alert('Upload failed unexpectedly')
+      alert('Upload failed unexpectedly: ' + JSON.stringify(error))
       setUploading(null)
     }
   }
