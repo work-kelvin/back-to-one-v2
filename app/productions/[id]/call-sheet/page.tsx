@@ -6,8 +6,6 @@ import { supabase } from '../../../../lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
@@ -160,6 +158,7 @@ export default function CallSheetGenerator() {
     setGenerating(true)
     
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const canvas = await html2canvas(callSheetRef.current, {
         scale: 2,
         useCORS: true,
