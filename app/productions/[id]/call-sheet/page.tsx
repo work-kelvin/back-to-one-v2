@@ -408,96 +408,188 @@ export default function CallSheetGenerator() {
               <CardContent>
                 <div 
                   ref={callSheetRef}
-                  className="bg-white p-6 border shadow-sm"
-                  style={{ fontFamily: 'Arial, sans-serif' }}
+                  className="bg-white p-8 border shadow-sm max-w-4xl mx-auto"
+                  style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', lineHeight: '1.4' }}
                 >
-                  {/* Call Sheet Header */}
-                  <div className="text-center border-b-2 border-black pb-4 mb-6">
-                    <h1 className="text-2xl font-bold mb-2">CALL SHEET</h1>
-                    <h2 className="text-xl font-semibold">{production.name}</h2>
-                    {production.client_name && (
-                      <p className="text-lg">Client: {production.client_name}</p>
-                    )}
+                  {/* Header */}
+                  <div className="text-center mb-8">
+                    <h1 className="text-2xl font-bold mb-2">{production.name || 'PRODUCTION TITLE'}</h1>
+                    <h2 className="text-lg">{production.shoot_date ? new Date(production.shoot_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'DATE'}</h2>
                   </div>
 
-                  {/* Production Info */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <strong>Date:</strong> {production.shoot_date ? new Date(production.shoot_date).toLocaleDateString() : 'TBD'}
-                    </div>
-                    <div>
-                      <strong>Call Time:</strong> {production.call_time || 'TBD'}
-                    </div>
-                    <div>
-                      <strong>Producer:</strong> {production.producer_name || 'TBD'}
-                    </div>
-                    <div>
-                      <strong>Phone:</strong> {production.producer_phone || 'TBD'}
-                    </div>
-                  </div>
-
-                  {/* Location */}
+                  {/* Location Section */}
                   <div className="mb-6">
-                    <h3 className="font-bold text-lg border-b border-gray-300 pb-1 mb-2">LOCATION</h3>
-                    <p><strong>Address:</strong> {production.location_address || 'TBD'}</p>
-                    {production.location_details && <p><strong>Details:</strong> {production.location_details}</p>}
-                    {production.parking_info && <p><strong>Parking:</strong> {production.parking_info}</p>}
-                    {production.weather_backup && <p><strong>Weather Backup:</strong> {production.weather_backup}</p>}
+                    <div className="grid grid-cols-2 gap-8">
+                      <div>
+                        <p><strong>Location:</strong></p>
+                        <p className="ml-4">{production.location_address || 'LOCATION ADDRESS'}</p>
+                        <p className="ml-4">{production.location_details || ''}</p>
+                      </div>
+                      <div>
+                        <p><strong>Location Contact:</strong></p>
+                        <p className="ml-4">{production.producer_name || 'CONTACT NAME'}</p>
+                        <p className="ml-4">{production.producer_phone || 'CONTACT PHONE'}</p>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Crew */}
-                  {crew.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="font-bold text-lg border-b border-gray-300 pb-1 mb-2">CREW</h3>
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gray-100">
-                            <th className="text-left p-2 border">Name</th>
-                            <th className="text-left p-2 border">Role</th>
-                            <th className="text-left p-2 border">Call Time</th>
-                            <th className="text-left p-2 border">Phone</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {crew.map((member) => (
-                            <tr key={member.id}>
-                              <td className="p-2 border">{member.name}</td>
-                              <td className="p-2 border">{member.role}</td>
-                              <td className="p-2 border">{member.call_time || '-'}</td>
-                              <td className="p-2 border">{member.phone || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  {/* Weather */}
+                  <div className="text-center mb-6">
+                    <p>☀️ / 32°C / Sunrise 5:53AM / Sunset 8:54PM</p>
+                  </div>
 
-                  {/* Looks */}
+                  {/* Crew Section */}
+                  <div className="mb-8">
+                    <h3 className="font-bold text-base mb-3">Crew:</h3>
+                    
+                    <table className="w-full border-collapse border border-black">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-black p-2 text-center font-bold">Name</th>
+                          <th className="border border-black p-2 text-center font-bold">Role</th>
+                          <th className="border border-black p-2 text-center font-bold">Contact Number</th>
+                          <th className="border border-black p-2 text-center font-bold">Call Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {crew.length > 0 ? crew.map((member) => (
+                          <tr key={member.id}>
+                            <td className="border border-black p-3 text-center">{member.name}</td>
+                            <td className="border border-black p-3 text-center">{member.role}</td>
+                            <td className="border border-black p-3 text-center">{member.phone || ''}</td>
+                            <td className="border border-black p-3 text-center">{member.call_time || ''}</td>
+                          </tr>
+                        )) : (
+                          // Empty rows for manual filling
+                          Array.from({ length: 8 }, (_, i) => (
+                            <tr key={i}>
+                              <td className="border border-black p-3 h-8"></td>
+                              <td className="border border-black p-3 h-8"></td>
+                              <td className="border border-black p-3 h-8"></td>
+                              <td className="border border-black p-3 h-8"></td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Entry/Parking */}
+                  <div className="mb-6">
+                    <p><strong>Entry/Parking:</strong></p>
+                    <p className="ml-4">{production.parking_info || 'PARKING INSTRUCTIONS'}</p>
+                  </div>
+
+                  {/* Schedule */}
+                  <div className="mb-8">
+                    <h3 className="font-bold text-base mb-3">Schedule:</h3>
+                    
+                    <table className="w-full border-collapse border border-black">
+                      <tbody>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold w-24">8:00</td>
+                          <td className="border border-black p-2 text-center font-bold">Call</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">8:30</td>
+                          <td className="border border-black p-2 text-center font-bold">Call</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">8:00-10:30</td>
+                          <td className="border border-black p-2 text-center font-bold">Set Up / Test</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">8:45</td>
+                          <td className="border border-black p-2 text-center font-bold">Call</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">9:00</td>
+                          <td className="border border-black p-2 text-center font-bold">Call</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">9:15</td>
+                          <td className="border border-black p-2 text-center font-bold">Call</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">9:30</td>
+                          <td className="border border-black p-2 text-center font-bold">Call</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">9:45</td>
+                          <td className="border border-black p-2 text-center font-bold">Call</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">9:30-10:30</td>
+                          <td className="border border-black p-2 text-center font-bold">Fitting / Review</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">10:30-2:00</td>
+                          <td className="border border-black p-2 text-center font-bold">Shoot</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">2:00-2:45</td>
+                          <td className="border border-black p-2 text-center font-bold">Break</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">2:45-5:30</td>
+                          <td className="border border-black p-2 text-center font-bold">Shoot</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">5:00</td>
+                          <td className="border border-black p-2 text-center font-bold">Wrap</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">5:30</td>
+                          <td className="border border-black p-2 text-center font-bold">Wrap</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                        <tr>
+                          <td className="border border-black p-2 text-center font-bold">5:30-6:30</td>
+                          <td className="border border-black p-2 text-center font-bold">Tear Down / Load Out</td>
+                          <td className="border border-black p-2"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Looks Section */}
                   {looks.length > 0 && (
                     <div className="mb-6">
-                      <h3 className="font-bold text-lg border-b border-gray-300 pb-1 mb-2">LOOKS</h3>
-                      <ol className="list-decimal list-inside space-y-1">
+                      <h3 className="font-bold text-base mb-3">Looks:</h3>
+                      <ul className="list-none space-y-1">
                         {looks.map((look, index) => (
                           <li key={look.id}>Look {index + 1}: {look.name}</li>
                         ))}
-                      </ol>
+                      </ul>
                     </div>
                   )}
-
-                  {/* Emergency Info */}
-                  <div className="border-t-2 border-black pt-4 mt-6">
-                    <h3 className="font-bold text-lg mb-2">EMERGENCY CONTACTS</h3>
-                    <p><strong>Producer:</strong> {production.producer_name || 'TBD'} - {production.producer_phone || 'TBD'}</p>
-                    <p><strong>Emergency Services:</strong> 911</p>
-                  </div>
 
                   {/* Special Notes */}
                   {production.special_notes && (
-                    <div className="mt-4">
-                      <h3 className="font-bold text-lg mb-2">SPECIAL NOTES</h3>
+                    <div className="mb-6">
+                      <h3 className="font-bold text-base mb-3">Special Notes:</h3>
                       <p>{production.special_notes}</p>
                     </div>
                   )}
+
+                  {/* Footer */}
+                  <div className="text-right mt-12 italic text-sm">
+                    <p>This is a closed set. No personal photos or videos</p>
+                    <p>are to be captured without prior consent.</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
