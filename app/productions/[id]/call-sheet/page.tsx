@@ -166,57 +166,84 @@ export default function CallSheetGenerator() {
     try {
       console.log('🚀 Starting PDF generation...')
       
-      // Hide any interactive elements during capture
-      const interactiveElements = callSheetRef.current.querySelectorAll('button, input, select')
-      interactiveElements.forEach(el => {
-        (el as HTMLElement).style.display = 'none'
+      // Create a clean clone without problematic CSS
+      const originalElement = callSheetRef.current
+      const clonedElement = originalElement.cloneNode(true) as HTMLElement
+      
+      // Remove all Tailwind classes and replace with inline styles
+      const allElements = clonedElement.querySelectorAll('*')
+      allElements.forEach(el => {
+        const element = el as HTMLElement
+        
+        // Remove all classes
+        element.className = ''
+        
+        // Apply basic styles directly
+        if (element.tagName === 'TABLE') {
+          element.style.borderCollapse = 'collapse'
+          element.style.width = '100%'
+          element.style.border = '1px solid black'
+        }
+        
+        if (element.tagName === 'TD' || element.tagName === 'TH') {
+          element.style.border = '1px solid black'
+          element.style.padding = '8px'
+          element.style.textAlign = 'center'
+        }
+        
+        if (element.tagName === 'TH') {
+          element.style.backgroundColor = '#f3f4f6'
+          element.style.fontWeight = 'bold'
+        }
+        
+        // Remove any CSS custom properties
+        element.style.removeProperty('--tw-ring-shadow')
+        element.style.removeProperty('--tw-shadow')
+        element.style.removeProperty('--tw-shadow-colored')
+        element.style.removeProperty('color')
+        element.style.color = 'black'
+        element.style.backgroundColor = element.style.backgroundColor || 'white'
       })
-
-      const canvas = await html2canvas(callSheetRef.current, {
+      
+      // Set overall container style
+      clonedElement.style.backgroundColor = 'white'
+      clonedElement.style.color = 'black'
+      clonedElement.style.fontFamily = 'Arial, sans-serif'
+      clonedElement.style.fontSize = '12px'
+      clonedElement.style.lineHeight = '1.4'
+      clonedElement.style.padding = '32px'
+      
+      // Temporarily add to DOM for capture
+      document.body.appendChild(clonedElement)
+      clonedElement.style.position = 'absolute'
+      clonedElement.style.left = '-9999px'
+      
+      const canvas = await html2canvas(clonedElement, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        removeContainer: true,
-        logging: false,
-        width: callSheetRef.current.scrollWidth,
-        height: callSheetRef.current.scrollHeight,
-        onclone: (clonedDoc: Document) => {
-          // Ensure clean styling in cloned document
-          const style = clonedDoc.createElement('style')
-          style.innerHTML = `
-            * {
-              -webkit-print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              box-shadow: none !important;
-              background: white !important;
-            }
-            .bg-gray-100 { background-color: #f3f4f6 !important; }
-            .border-black { border-color: #000000 !important; border-width: 1px !important; }
-            table { border-collapse: collapse !important; }
-            td, th { border: 1px solid #000000 !important; padding: 8px !important; }
-          `
-          clonedDoc.head.appendChild(style)
-        }
+        logging: false
       } as any)
-
+      
+      // Remove temporary element
+      document.body.removeChild(clonedElement)
+      
       console.log('✅ Canvas created successfully')
 
       const imgData = canvas.toDataURL('image/png', 1.0)
       const pdf = new jsPDF('p', 'mm', 'a4')
       
-      const imgWidth = 210 // A4 width in mm
-      const pageHeight = 295 // A4 height in mm
+      const imgWidth = 210
+      const pageHeight = 295
       const imgHeight = (canvas.height * imgWidth) / canvas.width
       let heightLeft = imgHeight
 
       let position = 0
 
-      // Add first page
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
-      // Add additional pages if needed
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
@@ -224,27 +251,42 @@ export default function CallSheetGenerator() {
         heightLeft -= pageHeight
       }
 
-      // Generate filename with date
       const date = new Date().toISOString().split('T')[0]
       const fileName = `${production.name.replace(/[^a-z0-9]/gi, '_')}_Call_Sheet_${date}.pdf`
       
       pdf.save(fileName)
       
       console.log('✅ PDF saved:', fileName)
-      alert(`Call sheet PDF downloaded: ${fileName}`)
-
-      // Restore interactive elements
-      interactiveElements.forEach(el => {
-        (el as HTMLElement).style.display = ''
-      })
+      alert(`Call sheet PDF downloaded successfully!`)
       
     } catch (error) {
       console.error('❌ PDF generation error:', error)
-      let message = 'Unknown error';
-      if (error instanceof Error) {
-        message = error.message;
+      
+      // Fallback to browser print
+      const printWindow = window.open('', '_blank')
+      if (printWindow && callSheetRef.current) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>${production.name} - Call Sheet</title>
+              <style>
+                body { font-family: Arial, sans-serif; font-size: 12px; }
+                table { border-collapse: collapse; width: 100%; }
+                td, th { border: 1px solid black; padding: 8px; text-align: center; }
+                th { background-color: #f3f4f6; font-weight: bold; }
+                @media print { body { margin: 0; } }
+              </style>
+            </head>
+            <body>
+              ${callSheetRef.current.innerHTML}
+            </body>
+          </html>
+        `)
+        printWindow.document.close()
+        printWindow.print()
+      } else {
+        alert('PDF generation failed. Please use browser print (Ctrl+P) as fallback.')
       }
-      alert('PDF generation failed. Error: ' + message)
     }
 
     setGenerating(false)
@@ -592,13 +634,14 @@ export default function CallSheetGenerator() {
                 <CardContent>
                   <div 
                     ref={callSheetRef}
-                    className="bg-white p-8 border shadow-sm max-w-4xl mx-auto"
                     style={{ 
-                      fontFamily: 'Arial, sans-serif', 
-                      fontSize: '12px', 
+                      backgroundColor: 'white',
+                      color: 'black',
+                      fontFamily: 'Arial, sans-serif',
+                      fontSize: '12px',
                       lineHeight: '1.4',
-                      backgroundColor: '#ffffff',
-                      color: '#000000'
+                      padding: '32px',
+                      border: '1px solid #ccc'
                     }}
                   >
                     {/* Header */}
