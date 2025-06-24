@@ -24,11 +24,6 @@ interface Production {
   name: string
 }
 
-interface DragResult {
-  source: { index: number }
-  destination: { index: number } | null
-}
-
 export default function LooksManagement() {
   const params = useParams()
   const router = useRouter()
