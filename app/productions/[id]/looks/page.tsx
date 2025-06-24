@@ -35,7 +35,7 @@ export default function LooksManagement() {
   useEffect(() => {
     loadProduction()
     loadLooks()
-  }, [])
+  }, [params.id])
 
   const loadProduction = async () => {
     const { data, error } = await supabase
@@ -91,31 +91,9 @@ export default function LooksManagement() {
     }
   }
 
-  const updateImageUrl = async (lookId: string, imageUrl: string) => {
-    console.log('🔗 Updating image URL for look:', lookId, imageUrl)
-    
-    const { error } = await supabase
-      .from('looks')
-      .update({ image_url: imageUrl })
-      .eq('id', lookId)
-
-    if (error) {
-      console.error('❌ Failed to update image URL:', error)
-      alert('Failed to save image URL')
-    } else {
-      // Update local state
-      setLooks(looks.map(look => 
-        look.id === lookId 
-          ? { ...look, image_url: imageUrl }
-          : look
-      ))
-      console.log('✅ Image URL updated successfully')
-    }
-  }
-
   const uploadImage = async (lookId: string, file: File) => {
     setUploading(lookId)
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('looks')
       .update({ image_url: URL.createObjectURL(file) })
       .eq('id', lookId)
