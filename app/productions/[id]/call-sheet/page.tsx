@@ -107,7 +107,7 @@ export default function CallSheetGenerator() {
     loadData()
   }, [params.id])
 
-  const updateProduction = async (field: string, value: string) => {
+  const updateProduction = async (field: keyof Production, value: string) => {
     const { error } = await supabase
       .from('productions')
       .update({ [field]: value })
