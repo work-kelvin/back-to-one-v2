@@ -151,8 +151,11 @@ export default function ProductionDetail() {
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">Manage looks, outfits, and styling requirements</p>
-            <Button variant="outline" className="w-full">
-              Add Looks (Coming Soon)
+            <Button 
+              onClick={() => router.push(`/productions/${production.id}/looks`)}
+              className="w-full"
+            >
+              Manage Looks
             </Button>
           </CardContent>
         </Card>
