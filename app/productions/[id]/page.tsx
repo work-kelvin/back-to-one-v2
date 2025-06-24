@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,11 +23,7 @@ export default function ProductionDetail() {
   const [editName, setEditName] = useState('')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadProduction()
-  }, [params.id])
-
-  const loadProduction = async () => {
+  const loadProduction = useCallback(async () => {
     const { data, error } = await supabase
       .from('productions')
       .select('*')
@@ -41,7 +37,11 @@ export default function ProductionDetail() {
       setEditName(data.name)
     }
     setLoading(false)
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    loadProduction()
+  }, [params.id, loadProduction])
 
   const updateProduction = async () => {
     if (!editName.trim() || !production) return
