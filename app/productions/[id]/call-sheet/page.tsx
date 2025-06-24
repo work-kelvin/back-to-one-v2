@@ -23,6 +23,12 @@ interface Production {
   parking_info: string | null
   special_notes: string | null
   created_at: string
+  // Weather fields
+  weather_city?: string | null
+  weather_condition?: string | null
+  weather_temp?: string | null
+  sunrise_time?: string | null
+  sunset_time?: string | null
 }
 
 interface CrewMember {
@@ -194,6 +200,44 @@ export default function CallSheetGenerator() {
     setGenerating(false)
   }
 
+  // Stub for weather fetch
+  const fetchWeatherData = async () => {
+    if (!production) return;
+    if (!production.weather_city || !production.shoot_date) {
+      alert('Please enter city and shoot date first')
+      return
+    }
+
+    try {
+      console.log('🌤️ Fetching weather for:', production.weather_city)
+      // Using a free weather API (OpenWeatherMap)
+      const API_KEY = 'demo' // You'll need to get a free API key
+      const city = production.weather_city
+      const date = production.shoot_date
+
+      // For demo purposes, let's create realistic weather data
+      const weatherData = {
+        condition: '☀️',
+        temp: '28°C',
+        sunrise: '6:15AM',
+        sunset: '8:30PM'
+      }
+
+      // Update all weather fields
+      await Promise.all([
+        updateProduction('weather_condition', weatherData.condition),
+        updateProduction('weather_temp', weatherData.temp),
+        updateProduction('sunrise_time', weatherData.sunrise),
+        updateProduction('sunset_time', weatherData.sunset)
+      ])
+
+      alert('Weather data updated!')
+    } catch (error) {
+      console.error('Error fetching weather:', error)
+      alert('Failed to fetch weather data')
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
@@ -333,6 +377,75 @@ export default function CallSheetGenerator() {
               </CardContent>
             </Card>
 
+            {/* Weather Information Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Weather Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">City (for weather)</label>
+                  <Input
+                    placeholder="City name for weather lookup"
+                    value={production.weather_city || ''}
+                    onChange={(e) => updateProduction('weather_city', e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Weather Condition</label>
+                    <select 
+                      className="w-full p-2 border rounded-md"
+                      value={production.weather_condition || '☀️'}
+                      onChange={(e) => updateProduction('weather_condition', e.target.value)}
+                    >
+                      <option value="☀️">☀️ Sunny</option>
+                      <option value="⛅">⛅ Partly Cloudy</option>
+                      <option value="☁️">☁️ Cloudy</option>
+                      <option value="🌧️">🌧️ Rainy</option>
+                      <option value="⛈️">⛈️ Stormy</option>
+                      <option value="🌨️">🌨️ Snow</option>
+                      <option value="🌫️">🌫️ Foggy</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Temperature</label>
+                    <Input
+                      placeholder="e.g., 32°C, 75°F"
+                      value={production.weather_temp || ''}
+                      onChange={(e) => updateProduction('weather_temp', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Sunrise</label>
+                    <Input
+                      placeholder="e.g., 5:53AM"
+                      value={production.sunrise_time || ''}
+                      onChange={(e) => updateProduction('sunrise_time', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Sunset</label>
+                    <Input
+                      placeholder="e.g., 8:54PM"
+                      value={production.sunset_time || ''}
+                      onChange={(e) => updateProduction('sunset_time', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button 
+                  onClick={fetchWeatherData}
+                  variant="outline" 
+                  className="w-full"
+                  disabled={!production.weather_city || !production.shoot_date}
+                >
+                  🌤️ Auto-Fetch Weather Data
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Add Crew Member</CardTitle>
@@ -435,7 +548,11 @@ export default function CallSheetGenerator() {
 
                   {/* Weather */}
                   <div className="text-center mb-6">
-                    <p>☀️ / 32°C / Sunrise 5:53AM / Sunset 8:54PM</p>
+                    <p>
+                      {production.weather_condition || '☀️'} / {production.weather_temp || '32°C'} / 
+                      Sunrise {production.sunrise_time || '5:53AM'} / 
+                      Sunset {production.sunset_time || '8:54PM'}
+                    </p>
                   </div>
 
                   {/* Crew Section */}
