@@ -29,13 +29,12 @@ export default function LooksManagement() {
   const [production, setProduction] = useState<Production | null>(null)
   const [looks, setLooks] = useState<Look[]>([])
   const [newLookName, setNewLookName] = useState('')
-  const [uploading, setUploading] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadProduction()
     loadLooks()
-  }, [params.id])
+  }, [])
 
   const loadProduction = async () => {
     const { data, error } = await supabase
@@ -91,68 +90,25 @@ export default function LooksManagement() {
     }
   }
 
-  const uploadImage = async (lookId: string, file: File) => {
-    setUploading(lookId)
+  const updateImageUrl = async (lookId: string, imageUrl: string) => {
+    console.log('🔗 Updating image URL for look:', lookId, imageUrl)
     
-    try {
-      console.log('🚀 Starting upload for look:', lookId)
-      console.log('📁 File details:', { name: file.name, size: file.size, type: file.type })
-      console.log('🔐 Current user:', await supabase.auth.getUser())
+    const { error } = await supabase
+      .from('looks')
+      .update({ image_url: imageUrl })
+      .eq('id', lookId)
 
-      const fileExt = file.name.split('.').pop()?.toLowerCase()
-      const fileName = `look-${lookId}-${Date.now()}.${fileExt}`
-      const filePath = `looks/${fileName}`
-
-      console.log('📂 Upload path:', filePath)
-
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('production-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        })
-
-      if (uploadError) {
-        console.error('❌ Upload error details:', uploadError)
-        alert('Upload failed: ' + uploadError.message + '\nDetails: ' + JSON.stringify(uploadError))
-        setUploading(null)
-        return
-      }
-
-      console.log('✅ Upload successful:', uploadData)
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('production-images')
-        .getPublicUrl(filePath)
-
-      console.log('🔗 Generated public URL:', publicUrl)
-
-      // Update look with image URL
-      const { error: updateError } = await supabase
-        .from('looks')
-        .update({ image_url: publicUrl })
-        .eq('id', lookId)
-
-      if (updateError) {
-        console.error('❌ Database update error:', updateError)
-        alert('Failed to save image URL')
-      } else {
-        // Update local state
-        setLooks(looks.map(look => 
-          look.id === lookId 
-            ? { ...look, image_url: publicUrl }
-            : look
-        ))
-        console.log('✅ Look updated with image URL')
-      }
-      setUploading(null)
-
-    } catch (error) {
-      console.error('❌ Unexpected error:', error)
-      alert('Upload failed unexpectedly: ' + JSON.stringify(error))
-      setUploading(null)
+    if (error) {
+      console.error('❌ Failed to update image URL:', error)
+      alert('Failed to save image URL')
+    } else {
+      // Update local state
+      setLooks(looks.map(look => 
+        look.id === lookId 
+          ? { ...look, image_url: imageUrl }
+          : look
+      ))
+      console.log('✅ Image URL updated successfully')
     }
   }
 
@@ -210,28 +166,6 @@ export default function LooksManagement() {
       console.error('Error deleting look:', error)
     } else {
       setLooks(looks.filter(look => look.id !== lookId))
-    }
-  }
-
-  const updateImageUrl = async (lookId: string, imageUrl: string) => {
-    console.log('🔗 Updating image URL for look:', lookId, imageUrl)
-    
-    const { error } = await supabase
-      .from('looks')
-      .update({ image_url: imageUrl })
-      .eq('id', lookId)
-
-    if (error) {
-      console.error('❌ Failed to update image URL:', error)
-      alert('Failed to save image URL')
-    } else {
-      // Update local state
-      setLooks(looks.map(look => 
-        look.id === lookId 
-          ? { ...look, image_url: imageUrl }
-          : look
-      ))
-      console.log('✅ Image URL updated successfully')
     }
   }
 
@@ -339,7 +273,7 @@ export default function LooksManagement() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* Image Display/Upload */}
+                  {/* Image Display/URL Input */}
                   <div className="mb-4">
                     {look.image_url ? (
                       <div className="relative group">
@@ -350,7 +284,6 @@ export default function LooksManagement() {
                           onLoad={() => console.log('✅ Image loaded:', look.image_url)}
                           onError={(e) => {
                             console.error('❌ Image failed to load:', look.image_url)
-                            // Show placeholder on error
                             e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4='
                           }}
                         />
