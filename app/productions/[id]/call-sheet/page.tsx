@@ -61,51 +61,51 @@ export default function CallSheetGenerator() {
   })
 
   useEffect(() => {
+    // Inline loadData to avoid missing dependency warning
+    const loadData = async () => {
+      // Load production
+      const { data: productionData, error: prodError } = await supabase
+        .from('productions')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+
+      if (prodError) {
+        console.error('Error loading production:', prodError)
+      } else {
+        setProduction(productionData)
+      }
+
+      // Load crew
+      const { data: crewData, error: crewError } = await supabase
+        .from('crew_members')
+        .select('*')
+        .eq('production_id', params.id)
+        .order('role', { ascending: true })
+
+      if (crewError) {
+        console.error('Error loading crew:', crewError)
+      } else {
+        setCrew(crewData || [])
+      }
+
+      // Load looks
+      const { data: looksData, error: looksError } = await supabase
+        .from('looks')
+        .select('id, name, sequence_order')
+        .eq('production_id', params.id)
+        .order('sequence_order', { ascending: true })
+
+      if (looksError) {
+        console.error('Error loading looks:', looksError)
+      } else {
+        setLooks(looksData || [])
+      }
+
+      setLoading(false)
+    }
     loadData()
   }, [params.id])
-
-  const loadData = async () => {
-    // Load production
-    const { data: productionData, error: prodError } = await supabase
-      .from('productions')
-      .select('*')
-      .eq('id', params.id)
-      .single()
-
-    if (prodError) {
-      console.error('Error loading production:', prodError)
-    } else {
-      setProduction(productionData)
-    }
-
-    // Load crew
-    const { data: crewData, error: crewError } = await supabase
-      .from('crew_members')
-      .select('*')
-      .eq('production_id', params.id)
-      .order('role', { ascending: true })
-
-    if (crewError) {
-      console.error('Error loading crew:', crewError)
-    } else {
-      setCrew(crewData || [])
-    }
-
-    // Load looks
-    const { data: looksData, error: looksError } = await supabase
-      .from('looks')
-      .select('id, name, sequence_order')
-      .eq('production_id', params.id)
-      .order('sequence_order', { ascending: true })
-
-    if (looksError) {
-      console.error('Error loading looks:', looksError)
-    } else {
-      setLooks(looksData || [])
-    }
-
-    setLoading(false)
-  }
 
   const updateProduction = async (field: string, value: string) => {
     const { error } = await supabase
@@ -158,7 +158,6 @@ export default function CallSheetGenerator() {
     setGenerating(true)
     
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const canvas = await html2canvas(callSheetRef.current, {
         scale: 2,
         useCORS: true,
