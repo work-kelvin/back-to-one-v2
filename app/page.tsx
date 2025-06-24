@@ -20,14 +20,16 @@ export default function Dashboard() {
   }, [])
 
   const loadProductions = async () => {
+    console.log('🚀 Loading productions from database...')
     const { data, error } = await supabase
       .from('productions')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error loading productions:', error)
+      console.error('❌ Error loading productions:', error)
     } else {
+      console.log('📊 Loaded productions:', data)
       setProductions(data || [])
     }
   }
@@ -36,14 +38,17 @@ export default function Dashboard() {
     if (!newProduction.trim()) return
 
     setLoading(true)
+    console.log('🚀 Creating production:', newProduction)
+    
     const { data, error } = await supabase
       .from('productions')
       .insert([{ name: newProduction.trim() }])
       .select()
 
     if (error) {
-      console.error('Error creating production:', error)
+      console.error('❌ Error creating production:', error)
     } else {
+      console.log('✅ Created production:', data)
       setProductions([...data, ...productions])
       setNewProduction('')
     }
