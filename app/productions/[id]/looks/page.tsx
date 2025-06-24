@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,10 +29,15 @@ export default function LooksManagement() {
   const [production, setProduction] = useState<Production | null>(null)
   const [looks, setLooks] = useState<Look[]>([])
   const [newLookName, setNewLookName] = useState('')
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProduction = useCallback(async () => {
+  useEffect(() => {
+    loadProduction()
+    loadLooks()
+  }, [params.id])
+
+  const loadProduction = async () => {
     const { data, error } = await supabase
       .from('productions')
       .select('id, name')
@@ -44,9 +49,9 @@ export default function LooksManagement() {
     } else {
       setProduction(data)
     }
-  }, [params.id])
+  }
 
-  const loadLooks = useCallback(async () => {
+  const loadLooks = async () => {
     const { data, error } = await supabase
       .from('looks')
       .select('*')
@@ -56,15 +61,11 @@ export default function LooksManagement() {
     if (error) {
       console.error('Error loading looks:', error)
     } else {
+      console.log('✅ Loaded looks:', data)
       setLooks(data || [])
     }
     setLoading(false)
-  }, [params.id])
-
-  useEffect(() => {
-    loadProduction()
-    loadLooks()
-  }, [loadProduction, loadLooks])
+  }
 
   const createLook = async () => {
     if (!newLookName.trim()) return
@@ -91,27 +92,36 @@ export default function LooksManagement() {
   }
 
   const uploadImage = async (lookId: string, file: File) => {
-    setUploading(true)
+    setUploading(lookId)
     
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${lookId}-${Date.now()}.${fileExt}`
-      const filePath = `looks/${fileName}`
+      // Check file size
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (file.size > maxSize) {
+        alert('Image too large. Please choose an image under 5MB.')
+        setUploading(null)
+        return
+      }
 
-      console.log('🚀 Uploading image:', fileName)
+      console.log('🚀 Starting upload for look:', lookId)
+      console.log('📁 File details:', { name: file.name, size: file.size, type: file.type })
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase()
+      const fileName = `look-${lookId}-${Date.now()}.${fileExt}`
+      const filePath = `looks/${fileName}`
 
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('production-images')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         })
 
       if (uploadError) {
         console.error('❌ Upload error:', uploadError)
-        alert('Failed to upload image: ' + uploadError.message)
-        setUploading(false)
+        alert('Upload failed: ' + uploadError.message)
+        setUploading(null)
         return
       }
 
@@ -122,57 +132,94 @@ export default function LooksManagement() {
         .from('production-images')
         .getPublicUrl(filePath)
 
-      console.log('✅ Public URL:', publicUrl)
+      console.log('🔗 Generated public URL:', publicUrl)
 
-      // Update look with image URL
-      const { error: updateError } = await supabase
-        .from('looks')
-        .update({ image_url: publicUrl })
-        .eq('id', lookId)
+      // Test if URL is accessible
+      const testImage = new window.Image()
+      testImage.onload = async () => {
+        console.log('✅ Image URL is accessible')
 
-      if (updateError) {
-        console.error('❌ Database update error:', updateError)
-        alert('Failed to save image URL: ' + updateError.message)
-      } else {
-        // Update local state
-        setLooks(looks.map(look => 
-          look.id === lookId 
-            ? { ...look, image_url: publicUrl }
-            : look
-        ))
-        console.log('✅ Look updated with image URL')
+        // Update look with image URL
+        const { error: updateError } = await supabase
+          .from('looks')
+          .update({ image_url: publicUrl })
+          .eq('id', lookId)
+
+        if (updateError) {
+          console.error('❌ Database update error:', updateError)
+          alert('Failed to save image URL')
+        } else {
+          // Update local state
+          setLooks(looks.map(look => 
+            look.id === lookId 
+              ? { ...look, image_url: publicUrl }
+              : look
+          ))
+          console.log('✅ Look updated with image URL')
+        }
+        setUploading(null)
       }
+
+      testImage.onerror = () => {
+        console.error('❌ Generated URL is not accessible:', publicUrl)
+        alert('Image uploaded but URL not accessible. Check storage settings.')
+        setUploading(null)
+      }
+
+      testImage.src = publicUrl
+
     } catch (error) {
       console.error('❌ Unexpected error:', error)
-      alert('Unexpected error uploading image')
+      alert('Upload failed unexpectedly')
+      setUploading(null)
     }
-    
-    setUploading(false)
   }
 
-  const moveLook = async (fromIndex: number, toIndex: number) => {
-    const items = Array.from(looks)
-    const [reorderedItem] = items.splice(fromIndex, 1)
-    items.splice(toIndex, 0, reorderedItem)
-
-    // Update sequence_order for all items
-    const updates = items.map((item, index) => ({
-      id: item.id,
-      sequence_order: index
-    }))
-
-    setLooks(items)
-
+  const moveUp = async (index: number) => {
+    if (index === 0) return
+    
+    const newLooks = [...looks]
+    const temp = newLooks[index]
+    newLooks[index] = newLooks[index - 1]
+    newLooks[index - 1] = temp
+    
+    // Update sequence orders
+    newLooks[index].sequence_order = index
+    newLooks[index - 1].sequence_order = index - 1
+    
+    setLooks(newLooks)
+    
     // Update database
-    for (const update of updates) {
-      await supabase
-        .from('looks')
-        .update({ sequence_order: update.sequence_order })
-        .eq('id', update.id)
-    }
+    await Promise.all([
+      supabase.from('looks').update({ sequence_order: index }).eq('id', newLooks[index].id),
+      supabase.from('looks').update({ sequence_order: index - 1 }).eq('id', newLooks[index - 1].id)
+    ])
+  }
+
+  const moveDown = async (index: number) => {
+    if (index === looks.length - 1) return
+    
+    const newLooks = [...looks]
+    const temp = newLooks[index]
+    newLooks[index] = newLooks[index + 1]
+    newLooks[index + 1] = temp
+    
+    // Update sequence orders
+    newLooks[index].sequence_order = index
+    newLooks[index + 1].sequence_order = index + 1
+    
+    setLooks(newLooks)
+    
+    // Update database
+    await Promise.all([
+      supabase.from('looks').update({ sequence_order: index }).eq('id', newLooks[index].id),
+      supabase.from('looks').update({ sequence_order: index + 1 }).eq('id', newLooks[index + 1].id)
+    ])
   }
 
   const deleteLook = async (lookId: string) => {
+    if (!confirm('Are you sure you want to delete this look?')) return
+
     const { error } = await supabase
       .from('looks')
       .delete()
@@ -188,11 +235,12 @@ export default function LooksManagement() {
   if (loading) {
     return (
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="animate-pulse space-y-4">
+        <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="h-24 bg-gray-200 rounded"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-64 bg-gray-200 rounded"></div>
+              <div key={i} className="h-80 bg-gray-200 rounded"></div>
             ))}
           </div>
         </div>
@@ -204,7 +252,7 @@ export default function LooksManagement() {
     <div className="min-h-screen bg-gray-50">
       <div className="p-6 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
           <div>
             <Button 
               variant="outline" 
@@ -214,9 +262,11 @@ export default function LooksManagement() {
               ← Back to Production
             </Button>
             <h1 className="text-3xl font-bold">{production?.name} - Looks</h1>
-            <p className="text-gray-600">Manage styling concepts and visual references</p>
+            <p className="text-gray-600">Visual styling concepts and references</p>
           </div>
-          <Badge variant="secondary">{looks.length} Looks</Badge>
+          <Badge variant="secondary" className="text-lg px-4 py-2">
+            {looks.length} Look{looks.length !== 1 ? 's' : ''}
+          </Badge>
         </div>
 
         {/* Create New Look */}
@@ -250,34 +300,35 @@ export default function LooksManagement() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {looks.map((look, index) => (
-              <Card key={look.id} className="hover:shadow-md transition-shadow">
+              <Card key={look.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{look.name}</CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Badge variant="outline">#{index + 1}</Badge>
-                      {index > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => moveLook(index, index - 1)}
-                        >
-                          ↑
-                        </Button>
-                      )}
-                      {index < looks.length - 1 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => moveLook(index, index + 1)}
-                        >
-                          ↓
-                        </Button>
-                      )}
                       <Button
-                        variant="destructive"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => moveUp(index)}
+                        disabled={index === 0}
+                        className="h-8 w-8 p-0"
+                      >
+                        ↑
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => moveDown(index)}
+                        disabled={index === looks.length - 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        ↓
+                      </Button>
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => deleteLook(look.id)}
+                        className="h-8 w-8 p-0 text-red-600 hover:bg-red-100"
                       >
                         ×
                       </Button>
@@ -285,20 +336,20 @@ export default function LooksManagement() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* Image Upload/Display */}
+                  {/* Image Display/Upload */}
                   <div className="mb-4">
                     {look.image_url ? (
                       <div className="relative group">
                         <img
                           src={look.image_url}
                           alt={look.name}
-                          className="w-full h-48 object-cover rounded-md border"
+                          className="w-full h-48 object-cover rounded-md"
+                          onLoad={() => console.log('✅ Image loaded:', look.image_url)}
                           onError={(e) => {
-                            console.error('Image failed to load:', look.image_url)
-                            // Show placeholder on error
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4='
+                            console.error('❌ Image failed to load:', look.image_url)
+                            // Remove the broken image
+                            e.currentTarget.style.display = 'none'
                           }}
-                          onLoad={() => console.log('✅ Image loaded successfully:', look.image_url)}
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-md flex items-center justify-center">
                           <Button
@@ -322,7 +373,7 @@ export default function LooksManagement() {
                       </div>
                     ) : (
                       <div
-                        className="w-full h-48 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors bg-gray-50"
+                        className="w-full h-48 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
                         onClick={() => {
                           const input = document.createElement('input')
                           input.type = 'file'
@@ -337,31 +388,22 @@ export default function LooksManagement() {
                         <div className="text-center">
                           <div className="text-4xl mb-2">📸</div>
                           <p className="text-sm text-gray-600">
-                            {uploading ? 'Uploading...' : 'Click to upload image'}
+                            {uploading === look.id ? 'Uploading...' : 'Click to upload image'}
                           </p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 5MB</p>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  <div className="text-sm text-gray-600">
-                    <p><strong>Sequence:</strong> {index + 1}</p>
-                    <p><strong>Created:</strong> {new Date(look.created_at).toLocaleDateString()}</p>
+                  {/* Look Details */}
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <div><strong>Sequence:</strong> {index + 1}</div>
+                    <div><strong>Created:</strong> {new Date(look.created_at).toLocaleDateString()}</div>
                   </div>
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-
-        {uploading && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="animate-spin text-4xl mb-4">⏳</div>
-                <p>Uploading image...</p>
-              </CardContent>
-            </Card>
           </div>
         )}
       </div>
